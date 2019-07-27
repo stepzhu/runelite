@@ -28,6 +28,7 @@ package net.runelite.client.plugins.xptracker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,6 +60,11 @@ class XpInfoBox extends JPanel
 {
 	private static final DecimalFormat TWO_DECIMAL_FORMAT = new DecimalFormat("0.00");
 
+	static
+	{
+		TWO_DECIMAL_FORMAT.setRoundingMode(RoundingMode.DOWN);
+	}
+
 	// Templates
 	private static final String HTML_TOOL_TIP_TEMPLATE =
 		"<html>%s %s done<br/>"
@@ -66,6 +72,9 @@ class XpInfoBox extends JPanel
 			+ "%s till goal lvl</html>";
 	private static final String HTML_LABEL_TEMPLATE =
 		"<html><body style='color:%s'>%s<span style='color:white'>%s</span></body></html>";
+
+	private static final String REMOVE_STATE = "Remove from canvas";
+	private static final String ADD_STATE = "Add to canvas";
 
 	// Instance members
 	private final JPanel panel;
@@ -89,6 +98,7 @@ class XpInfoBox extends JPanel
 	private final JLabel expLeft = new JLabel();
 	private final JLabel actionsLeft = new JLabel();
 	private final JMenuItem pauseSkill = new JMenuItem("Pause");
+	private final JMenuItem canvasItem = new JMenuItem(ADD_STATE);
 
 	private final XpTrackerConfig xpTrackerConfig;
 
@@ -128,6 +138,21 @@ class XpInfoBox extends JPanel
 		popupMenu.add(reset);
 		popupMenu.add(resetOthers);
 		popupMenu.add(pauseSkill);
+		popupMenu.add(canvasItem);
+
+		canvasItem.addActionListener(e ->
+		{
+			if (canvasItem.getText().equals(REMOVE_STATE))
+			{
+				xpTrackerPlugin.removeOverlay(skill);
+				canvasItem.setText(ADD_STATE);
+			}
+			else
+			{
+				xpTrackerPlugin.addOverlay(skill);
+				canvasItem.setText(REMOVE_STATE);
+			}
+		});
 
 		JLabel skillIcon = new JLabel(new ImageIcon(iconManager.getSkillImage(skill)));
 		skillIcon.setHorizontalAlignment(SwingConstants.CENTER);
@@ -177,6 +202,7 @@ class XpInfoBox extends JPanel
 
 	void reset()
 	{
+		canvasItem.setText(ADD_STATE);
 		container.remove(statsPanel);
 		panel.remove(this);
 		panel.revalidate();

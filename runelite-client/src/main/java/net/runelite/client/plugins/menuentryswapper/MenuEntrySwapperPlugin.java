@@ -262,12 +262,12 @@ public class MenuEntrySwapperPlugin extends Plugin
 		ItemComposition itemComposition = client.getItemDefinition(itemId);
 		String itemName = itemComposition.getName();
 		String option = "Use";
-		int shiftClickActionindex = itemComposition.getShiftClickActionIndex();
+		int shiftClickActionIndex = itemComposition.getShiftClickActionIndex();
 		String[] inventoryActions = itemComposition.getInventoryActions();
 
-		if (shiftClickActionindex >= 0 && shiftClickActionindex < inventoryActions.length)
+		if (shiftClickActionIndex >= 0 && shiftClickActionIndex < inventoryActions.length)
 		{
-			option = inventoryActions[shiftClickActionindex];
+			option = inventoryActions[shiftClickActionIndex];
 		}
 
 		MenuEntry[] entries = event.getMenuEntries();
@@ -362,7 +362,7 @@ public class MenuEntrySwapperPlugin extends Plugin
 		final int eventId = event.getIdentifier();
 		final String option = Text.removeTags(event.getOption()).toLowerCase();
 		final String target = Text.removeTags(event.getTarget()).toLowerCase();
-		final NPC hintArrowNpc  = client.getHintArrowNpc();
+		final NPC hintArrowNpc = client.getHintArrowNpc();
 
 		if (hintArrowNpc != null
 			&& hintArrowNpc.getIndex() == eventId
@@ -381,6 +381,11 @@ public class MenuEntrySwapperPlugin extends Plugin
 			if (config.swapAbyssTeleport() && target.contains("mage of zamorak"))
 			{
 				swap("teleport", option, target, true);
+			}
+
+			if (config.swapHardWoodGrove() && target.contains("rionasta"))
+			{
+				swap("send-parcel", option, target, true);
 			}
 
 			if (config.swapBank())
@@ -413,6 +418,7 @@ public class MenuEntrySwapperPlugin extends Plugin
 			{
 				swap("trade", option, target, true);
 				swap("trade-with", option, target, true);
+				swap("shop", option, target, true);
 			}
 
 			if (config.claimSlime() && target.equals("robin"))
@@ -449,6 +455,11 @@ public class MenuEntrySwapperPlugin extends Plugin
 			{
 				swap("quick-travel", option, target, true);
 			}
+
+			if (config.swapEnchant())
+			{
+				swap("enchant", option, target, true);
+			}
 		}
 		else if (config.swapTravel() && option.equals("pass") && target.equals("energy barrier"))
 		{
@@ -457,6 +468,10 @@ public class MenuEntrySwapperPlugin extends Plugin
 		else if (config.swapTravel() && option.equals("open") && target.equals("gate"))
 		{
 			swap("pay-toll(10gp)", option, target, true);
+		}
+		else if (config.swapHardWoodGrove() && option.equals("open") && target.equals("hardwood grove doors"))
+		{
+			swap("quick-pay(100)", option, target, true);
 		}
 		else if (config.swapTravel() && option.equals("inspect") && target.equals("trapdoor"))
 		{
@@ -517,6 +532,10 @@ public class MenuEntrySwapperPlugin extends Plugin
 		{
 			swap("empty", option, target, true);
 		}
+		else if (config.swapQuick() && option.equals("enter"))
+		{
+			swap("quick-enter", option, target, true);
+		}
 		else if (config.swapQuick() && option.equals("ring"))
 		{
 			swap("quick-start", option, target, true);
@@ -529,6 +548,10 @@ public class MenuEntrySwapperPlugin extends Plugin
 		else if (config.swapQuick() && option.equals("open"))
 		{
 			swap("quick-open", option, target, true);
+		}
+		else if (config.swapQuick() && option.equals("climb-down"))
+		{
+			swap("quick-start", option, target, true);
 		}
 		else if (config.swapAdmire() && option.equals("admire"))
 		{

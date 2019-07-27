@@ -50,6 +50,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import net.runelite.api.Client;
+import net.runelite.api.Constants;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemComposition;
@@ -77,6 +78,7 @@ import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.Notifier;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.game.chatbox.ChatboxItemSearch;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.banktags.BankTagsConfig;
 import net.runelite.client.plugins.banktags.BankTagsPlugin;
@@ -125,10 +127,10 @@ public class TabInterface
 	private final Rectangle bounds = new Rectangle();
 	private final Rectangle canvasBounds = new Rectangle();
 
+	private ChatboxItemSearch searchProvider;
 	private TagTab activeTab;
 	private int maxTabs;
 	private int currentTabIndex;
-	private TagTab iconToSet = null;
 	private Instant startScroll = Instant.now();
 	private String rememberedSearch;
 	private boolean waitSearchTick;
@@ -155,7 +157,8 @@ public class TabInterface
 		final ChatboxPanelManager chatboxPanelManager,
 		final BankTagsConfig config,
 		final Notifier notifier,
-		final BankSearch bankSearch)
+		final BankSearch bankSearch,
+		final ChatboxItemSearch searchProvider)
 	{
 		this.client = client;
 		this.clientThread = clientThread;
@@ -166,6 +169,7 @@ public class TabInterface
 		this.config = config;
 		this.notifier = notifier;
 		this.bankSearch = bankSearch;
+		this.searchProvider = searchProvider;
 	}
 
 	public boolean isActive()
@@ -332,7 +336,7 @@ public class TabInterface
 				{
 					bankSearch.reset(true);
 
-					clientThread.invokeLater(() -> client.runScript(ScriptID.RESET_CHATBOX_INPUT));
+					clientThread.invokeLater(() -> client.runScript(ScriptID.RESET_CHATBOX_INPUT, 0, 0));
 				}
 				else
 				{
@@ -342,7 +346,20 @@ public class TabInterface
 				client.playSoundEffect(SoundEffectID.UI_BOOP);
 				break;
 			case Tab.CHANGE_ICON:
-				iconToSet = tabManager.find(Text.removeTags(event.getOpbase()));
+				final String tag = Text.removeTags(event.getOpbase());
+				searchProvider
+					.tooltipText(CHANGE_ICON + " (" + tag + ")")
+					.onItemSelected((itemId) ->
+					{
+						TagTab iconToSet = tabManager.find(tag);
+						if (iconToSet != null)
+						{
+							iconToSet.setIconItemId(itemId);
+							iconToSet.getIcon().setItemId(itemId);
+							tabManager.setIcon(iconToSet.getTag(), itemId + "");
+						}
+					})
+					.build();
 				break;
 			case Tab.DELETE_TAB:
 				String target = Text.standardize(event.getOpbase());
@@ -525,12 +542,6 @@ public class TabInterface
 			entries = createMenuEntry(event, REMOVE_TAG + " (" + activeTab.getTag() + ")", event.getTarget(), entries);
 			client.setMenuEntries(entries);
 		}
-		else if (iconToSet != null && (entry.getOption().startsWith("Withdraw-") || entry.getOption().equals("Release")))
-		{
-			// TODO: Do not replace every withdraw option with change icon option
-			entry.setOption(CHANGE_ICON + " (" + iconToSet.getTag() + ")");
-			client.setMenuEntries(entries);
-		}
 		else if (event.getActionParam1() == WidgetInfo.BANK_DEPOSIT_INVENTORY.getId()
 			&& event.getOption().equals("Deposit inventory"))
 		{
@@ -564,6 +575,14 @@ public class TabInterface
 			return;
 		}
 
+		if (chatboxPanelManager.getCurrentInput() != null
+			&& event.getMenuAction() != MenuAction.CANCEL
+			&& !event.getMenuOption().equals(SCROLL_UP)
+			&& !event.getMenuOption().equals(SCROLL_DOWN))
+		{
+			chatboxPanelManager.close();
+		}
+
 		if (event.getWidgetId() == WidgetInfo.BANK_ITEM_CONTAINER.getId()
 			&& event.getMenuAction() == MenuAction.EXAMINE_ITEM_BANK_EQ
 			&& event.getMenuOption().equalsIgnoreCase("withdraw-x"))
@@ -571,22 +590,6 @@ public class TabInterface
 			waitSearchTick = true;
 			rememberedSearch = client.getVar(VarClientStr.INPUT_TEXT);
 			bankSearch.search(InputType.NONE, rememberedSearch, true);
-		}
-
-		if (iconToSet != null)
-		{
-			if (event.getMenuOption().startsWith(CHANGE_ICON + " ("))
-			{
-				ItemComposition item = getItem(event.getActionParam());
-				int itemId = itemManager.canonicalize(item.getId());
-				iconToSet.setIconItemId(itemId);
-				iconToSet.getIcon().setItemId(itemId);
-				tabManager.setIcon(iconToSet.getTag(), itemId + "");
-				event.consume();
-			}
-
-			// Reset icon selection even when we do not clicked item with icon
-			iconToSet = null;
 		}
 
 		if (activeTab != null
@@ -721,7 +724,13 @@ public class TabInterface
 
 		if (tagTab.getIcon() == null)
 		{
-			Widget icon = createGraphic(ColorUtil.wrapWithColorTag(tagTab.getTag(), HILIGHT_COLOR), -1, tagTab.getIconItemId(), 36, 32, bounds.x + 3, 1, false);
+			Widget icon = createGraphic(
+				ColorUtil.wrapWithColorTag(tagTab.getTag(), HILIGHT_COLOR),
+				-1,
+				tagTab.getIconItemId(),
+				Constants.ITEM_SPRITE_WIDTH, Constants.ITEM_SPRITE_HEIGHT,
+				bounds.x + 3, 1,
+				false);
 			int clickmask = icon.getClickMask();
 			clickmask |= WidgetConfig.DRAG;
 			clickmask |= WidgetConfig.DRAG_ON;
